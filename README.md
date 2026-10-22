@@ -8,7 +8,7 @@ it working.
 Front end only. There is no backend and no AI; every upload, send, reply and
 model list is simulated.
 
-**[Live demo](#)** · deployment pending
+**[Live demo](https://composer-eliasheininger.vercel.app)** · [Repository](https://github.com/eliasheininger/composer)
 
 ## How the fake parts work
 
