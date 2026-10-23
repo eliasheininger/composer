@@ -261,12 +261,23 @@ function CascaderAction({
   onSelect,
   onClick,
   onKeyDown,
+  onPointerEnter,
   disabled,
   ...props
 }: CascaderActionProps) {
   // Set by `CascaderSubmenuContent`: a plain button in the footer's Tab ring,
   // a roving-focus `menuitem` inside a flyout, never both.
   const inMenu = React.useContext(CascaderMenuContext)
+
+  // One highlight, the way a menu moves it: the pointer takes focus with it,
+  // so a row left by the keyboard does not stay lit beside the hovered one.
+  const handlePointerEnter = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      onPointerEnter?.(event)
+      if (!disabled) event.currentTarget.focus({ preventScroll: true })
+    },
+    [disabled, onPointerEnter]
+  )
 
   const handleClick = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -302,6 +313,7 @@ function CascaderAction({
       {...(disabled ? { "aria-disabled": true, "data-disabled": "" } : null)}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onPointerEnter={handlePointerEnter}
       /* Conditional spread, so a consumer's own `role` or `tabIndex` wins. */
       {...(inMenu ? { role: "menuitem" as const, tabIndex: -1 } : null)}
       className={cn(CASCADER_ACTION_CLASS, className)}
