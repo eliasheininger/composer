@@ -105,7 +105,7 @@ export function ConnectedApps({ connected, className }: ConnectedAppsProps) {
                   className={cn(
                     "items-center justify-center bg-background outline-hidden after:hidden",
                     ENTER_SCALE,
-                    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                    "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ring",
                   )}
                 >
                   <IntegrationIcon id={app.id} className="size-3.5" />
@@ -126,7 +126,7 @@ export function ConnectedApps({ connected, className }: ConnectedAppsProps) {
                   className={cn(
                     "text-xs outline-hidden",
                     ENTER_SCALE,
-                    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                    "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ring",
                   )}
                 >
                   +{hidden.length}

@@ -87,7 +87,7 @@ const CASCADER_ACTION_INSET_CLASS = `${ROW_INSET_CLASS} ${ROW_FLUSH_CLASS}`
  *  leave a command painted as if it were still hovered. Disabled keys off
  *  `aria-disabled`, not `:disabled`, to keep it FOCUSABLE: a footer whose only
  *  row is disabled has no tab stop. */
-export const CASCADER_ACTION_CLASS = `${ROW_SHELL_CLASS} ${ROW_TEXT_CLASS} ${ROW_FLUSH_CLASS} hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground cursor-pointer gap-2 transition-colors aria-disabled:pointer-events-none aria-disabled:opacity-50`
+export const CASCADER_ACTION_CLASS = `${ROW_SHELL_CLASS} ${ROW_TEXT_CLASS} ${ROW_FLUSH_CLASS} focus:bg-accent focus:text-accent-foreground cursor-pointer gap-2 transition-colors aria-disabled:pointer-events-none aria-disabled:opacity-50`
 
 // The box around the affordances that are not the row. 20px around a 16px icon,
 // the outer 2px cancelled at the call site; 24px would set the row height.

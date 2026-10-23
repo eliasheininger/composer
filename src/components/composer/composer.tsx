@@ -102,6 +102,29 @@ export function Composer({
   const id = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
+  /*
+   * A focused text field always matches :focus-visible, so a ring keyed off
+   * it would also appear on a mouse click. The last input method is tracked
+   * instead, and the textarea only marks focus that arrived by keyboard.
+   * Only Tab counts: Enter sends and the reply hands focus back, and that
+   * is not navigation, so a mouse user never sees the ring.
+   */
+  const lastInput = useRef<"keyboard" | "pointer">("keyboard");
+  const [keyboardFocus, setKeyboardFocus] = useState(false);
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Tab") lastInput.current = "keyboard";
+    };
+    const onPointer = () => {
+      lastInput.current = "pointer";
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, []);
   const files = useAttachments({
     disabled,
     // A drop or a paste leaves focus wherever it was, often on the body.
@@ -135,8 +158,11 @@ export function Composer({
    * lingers while it closes.
    */
   const hasFooterRow = connectedApps.length > 0 || files.rejections.length > 0;
-  const [rowRejections, clearRejections] = useLingering(files.rejections);
-  const [rowApps, clearApps] = useLingering(connectedApps);
+  const [rowRejections, clearRejections] = useLingering(
+    files.rejections,
+    hasFooterRow,
+  );
+  const [rowApps, clearApps] = useLingering(connectedApps, hasFooterRow);
 
   /** Snapshot the row when an action is about to leave it empty. */
   function keepForCollapse() {
@@ -340,7 +366,10 @@ export function Composer({
               reads as a field within the composer. The InputGroup itself
               gives up its border, background and focus ring to the panel.
             */}
-            <FramePanel className="p-0">
+            {/* The textarea gives up its own focus ring (below), so the panel
+                around it carries the field focus treatment instead, for
+                keyboard focus only. */}
+            <FramePanel className="p-0 has-[[data-slot=input-group-control][data-keyboard-focus]]:border-ring has-[[data-slot=input-group-control][data-keyboard-focus]]:ring-3 has-[[data-slot=input-group-control][data-keyboard-focus]]:ring-ring/50">
               <InputGroup className="rounded-none border-0 bg-transparent has-disabled:bg-transparent has-disabled:opacity-100 has-[[data-slot=input-group-control]:focus-visible]:border-transparent has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent dark:has-disabled:bg-transparent">
             <InputGroupTextarea
               ref={textareaRef}
@@ -352,6 +381,9 @@ export function Composer({
                 if (files.rejections.length > 0) files.dismissRejections();
               }}
               onKeyDown={handleKeyDown}
+              onFocus={() => setKeyboardFocus(lastInput.current === "keyboard")}
+              onBlur={() => setKeyboardFocus(false)}
+              data-keyboard-focus={keyboardFocus || undefined}
               onPaste={files.onPaste}
               placeholder={placeholder}
               disabled={disabled}
@@ -386,7 +418,7 @@ export function Composer({
                     size="icon-sm"
                     aria-label="Stop generating"
                     onClick={onStop}
-                    className="rounded-full focus-visible:border-transparent focus-visible:ring-0"
+                    className="rounded-full"
                   >
                     <SquareIcon className={cn("size-3 fill-current", ENTER_ICON)} />
                   </InputGroupButton>
@@ -400,7 +432,7 @@ export function Composer({
                     }
                     aria-busy={activity === "sending"}
                     disabled={!canSubmit}
-                    className="rounded-full focus-visible:border-transparent focus-visible:ring-0"
+                    className="rounded-full"
                   >
                     {activity === "sending" ? (
                       <Spinner aria-hidden="true" role="presentation" />
@@ -505,14 +537,16 @@ export function Composer({
 }
 
 /**
- * The last non-empty `items`, held while `items` is empty so a closing row
- * has content to animate from; `clear` drops it once the row has closed.
+ * The last non-empty `items`, held while the row is closed so it has content
+ * to animate from; `clear` drops it once the row has closed. While the row is
+ * open, `items` is shown as is, even when empty: the row may be open for its
+ * other content, and a held copy would otherwise outlive its dismissal.
  * Snapshotted while rendering rather than in an effect: the copy has to be
  * current before the frame in which the content clears. `items` must be
  * referentially stable between renders (state, not a fresh array).
  */
-function useLingering<T>(items: T[]): [T[], () => void] {
+function useLingering<T>(items: T[], open: boolean): [T[], () => void] {
   const [kept, setKept] = useState(items);
   if (items.length > 0 && kept !== items) setKept(items);
-  return [items.length > 0 ? items : kept, () => setKept([])];
+  return [open ? items : kept, () => setKept([])];
 }
