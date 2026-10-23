@@ -26,7 +26,9 @@ export function Chat() {
         {chat.activity === "sending"
           ? "Sending message"
           : reply?.status === "processing"
-            ? "Reading attached files"
+            ? reply.appLookup && !reply.processing
+              ? `${reply.appLookup.verb} ${reply.appLookup.app.name}`
+              : "Reading attached files"
             : chat.activity === "generating"
               ? "Generating reply"
               : pendingSend?.status === "failed"

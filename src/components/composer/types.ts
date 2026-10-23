@@ -1,3 +1,5 @@
+import type { IntegrationId } from "@/lib/mock-data";
+
 export type AttachmentStatus = "uploading" | "error" | "done";
 
 export type ComposerAttachment = {
@@ -23,6 +25,8 @@ export type ComposerSubmission = {
   text: string;
   attachments: ComposerAttachment[];
   modelId: string;
+  /** Apps connected through the plus menu, in menu order. */
+  connectedApps: IntegrationId[];
 };
 
 /** What the surrounding conversation is doing; drives the send/stop control. */
