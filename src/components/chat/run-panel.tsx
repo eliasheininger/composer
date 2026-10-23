@@ -216,15 +216,33 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
 
 /** The waiting row, shown from the moment a message is sent. */
 function ThinkingLine({ text }: { text: string }) {
+  /*
+   * Deliberately the same shell as the reply it becomes: once the message is
+   * accepted this row is replaced by ReplyPreview, and if the two did not
+   * agree on their structure the thinking line would sit at one height and
+   * the first words of the answer at another. The empty footer is what
+   * reserves the space the copy button and timestamp will take.
+   */
   return (
-    <Marker>
-      <MarkerIcon>
-        <Spinner aria-hidden="true" role="presentation" />
-      </MarkerIcon>
-      <MarkerContent>
-        <span className="animate-pulse motion-reduce:animate-none">{text}</span>
-      </MarkerContent>
-    </Marker>
+    <Message>
+      <MessageContent className="gap-2">
+        <Bubble variant="ghost" aria-busy="true">
+          <BubbleContent>
+            <Marker>
+              <MarkerIcon>
+                <Spinner aria-hidden="true" role="presentation" />
+              </MarkerIcon>
+              <MarkerContent>
+                <span className="animate-pulse motion-reduce:animate-none">
+                  {text}
+                </span>
+              </MarkerContent>
+            </Marker>
+          </BubbleContent>
+        </Bubble>
+        <MessageFooter inert aria-hidden="true" className="min-h-7" />
+      </MessageContent>
+    </Message>
   );
 }
 
@@ -364,21 +382,22 @@ function ReplyPreview({ message }: ReplyPreviewProps) {
           </Bubble>
         )}
         {/*
-          The footer holds its place from the moment text starts arriving and
-          fades in once the reply settles. Mounting it at the end instead
-          would push the composer down a line exactly as the reader reaches
-          it. Hidden from the keyboard and screen readers until it is real.
+          The footer holds its place from the first moment the reply block
+          exists, through thinking and streaming, and fades in once the reply
+          settles. Mounting it at the end instead would push the composer
+          down exactly as the reader reaches it, and min-h keeps that space
+          reserved while the row is still empty. Hidden from the keyboard and
+          screen readers until it is real.
         */}
-        {waiting ? null : (
-          <MessageFooter
-            inert={!settled}
-            aria-hidden={!settled}
-            className={cn(
-              "gap-2 text-xs transition-opacity duration-200 motion-reduce:transition-none",
-              EASE_OUT_STRONG,
-              settled ? "opacity-100" : "opacity-0",
-            )}
-          >
+        <MessageFooter
+          inert={!settled}
+          aria-hidden={!settled}
+          className={cn(
+            "min-h-7 gap-2 text-xs transition-opacity duration-200 motion-reduce:transition-none",
+            EASE_OUT_STRONG,
+            settled ? "opacity-100" : "opacity-0",
+          )}
+        >
             {message.text.length > 0 ? (
               <CopyButton value={message.text} label="reply" />
             ) : null}
@@ -401,8 +420,7 @@ function ReplyPreview({ message }: ReplyPreviewProps) {
                 {stoppedEarly ? "Stopped before the reply" : "Stopped"}
               </span>
             ) : null}
-          </MessageFooter>
-        )}
+        </MessageFooter>
       </MessageContent>
     </Message>
   );
