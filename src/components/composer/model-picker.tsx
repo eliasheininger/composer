@@ -127,7 +127,7 @@ export function ModelPicker({
           </Button>
         }
       />
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-56">
         {status === "error" ? (
           <DropdownMenuGroup>
             <DropdownMenuLabel>Models could not be loaded</DropdownMenuLabel>
@@ -149,15 +149,9 @@ export function ModelPicker({
                 // Radio items stay open on select by default (built for
                 // multi-toggle menus); a model picker should close on pick.
                 closeOnClick
-                className="items-start py-1.5"
               >
-                <ProviderIcon provider={model.provider} className="mt-0.5" />
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium">{model.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {model.description}
-                  </span>
-                </span>
+                <ProviderIcon provider={model.provider} />
+                <span className="truncate font-medium">{model.name}</span>
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>

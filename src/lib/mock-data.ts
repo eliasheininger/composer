@@ -13,7 +13,6 @@ export type Model = {
   id: string;
   name: string;
   provider: ModelProvider;
-  description: string;
   tier: "fast" | "balanced" | "deep";
 };
 
@@ -22,28 +21,24 @@ export const MODELS: Model[] = [
     id: "claude-4.6-opus",
     name: "Claude 4.6 Opus",
     provider: "anthropic",
-    description: "Deepest reasoning for long, multi-step work.",
     tier: "deep",
   },
   {
     id: "claude-4.6-sonnet",
     name: "Claude 4.6 Sonnet",
     provider: "anthropic",
-    description: "Balanced speed and quality for everyday tasks.",
     tier: "balanced",
   },
   {
     id: "gpt-5.4",
     name: "GPT-5.4",
     provider: "openai",
-    description: "Fast general-purpose model.",
     tier: "fast",
   },
   {
     id: "gemini-3.1-pro",
     name: "Gemini 3.1 Pro",
     provider: "google",
-    description: "Large context window for big documents.",
     tier: "balanced",
   },
 ];
