@@ -170,9 +170,14 @@ export function AttachmentList({
     <AttachmentGroup
       role="list"
       aria-label="Attached files"
-      // No padding of its own: inside the composer frame the chips sit flush
-      // with the input panel, sharing the frame inset.
-      className="w-full py-0 scroll-px-0"
+      /*
+       * No padding of its own: inside the composer frame the chips sit flush
+       * with the input panel, sharing the frame inset. The gap between chips
+       * is the frames own gap token, so the space between two chips matches
+       * the space around the row rather than being a second, larger value.
+       * Everything governing the scroll is left untouched.
+       */
+      className="w-full gap-(--frame-gap) py-0 scroll-px-0"
     >
       {attachments.map((item) => (
         <AttachmentChip

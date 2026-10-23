@@ -239,7 +239,7 @@ export function Composer({
   }
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div className={cn("flex flex-col gap-3", className)}>
       {renderPanel?.(files.attachments)}
       <form
         onSubmit={handleSubmit}
@@ -396,7 +396,10 @@ export function Composer({
             {files.rejections.length > 0 ? (
               <div
                 role="alert"
-                className="mt-(--frame-gap) flex flex-wrap items-center gap-1 px-1 py-0.5"
+                // p-1 on top of the frame s own 3px inset puts the badge 7px
+                // from every edge: the horizontal spacing it already had, now
+                // matched vertically.
+                className="mt-(--frame-gap) flex flex-wrap items-center gap-1 p-1"
               >
                 {files.rejections.map((message) => (
                   <Badge

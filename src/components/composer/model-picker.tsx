@@ -3,6 +3,8 @@
 import { ChevronDownIcon, RotateCwIcon, TriangleAlertIcon } from "lucide-react";
 import { cn } from "cn";
 
+import { EASE_OUT_STRONG } from "@/lib/motion";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -90,7 +92,9 @@ export function ModelPicker({
             size="sm"
             aria-label={`Model: ${label}`}
             aria-busy={status === "loading"}
-            className="rounded-full focus-visible:border-transparent focus-visible:ring-0"
+            // h-8 to match the icon buttons beside it: the sm size is 28px,
+            // which left the hover pill visibly shorter than send and attach.
+            className="h-8 rounded-full focus-visible:border-transparent focus-visible:ring-0"
           >
             {status === "loading" ? (
               <Spinner className="size-3.5" aria-hidden="true" role="presentation" />
@@ -110,7 +114,16 @@ export function ModelPicker({
             >
               {label}
             </span>
-            <ChevronDownIcon aria-hidden="true" className="text-muted-foreground" />
+            {/* Points up while the menu is open, so the trigger says which
+                way the next click goes. 150ms keeps it with the menu, which
+                opens in 100ms. */}
+            <ChevronDownIcon
+              aria-hidden="true"
+              className={cn(
+                "text-muted-foreground transition-transform duration-150 group-aria-expanded/button:rotate-180 motion-reduce:transition-none",
+                EASE_OUT_STRONG,
+              )}
+            />
           </Button>
         }
       />
