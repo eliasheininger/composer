@@ -94,7 +94,7 @@ export function ModelPicker({
             aria-busy={status === "loading"}
             // h-8 to match the icon buttons beside it: the sm size is 28px,
             // which left the hover pill visibly shorter than send and attach.
-            className="h-8 rounded-full focus-visible:border-transparent focus-visible:ring-0"
+            className="h-8 rounded-full text-sm focus-visible:border-transparent focus-visible:ring-0"
           >
             {status === "loading" ? (
               <Spinner className="size-3.5" aria-hidden="true" role="presentation" />
