@@ -27,7 +27,7 @@ import {
 import { formatBytes } from "@/lib/files";
 import { pickReply } from "@/lib/mock-data";
 import type { ProcessingStage } from "@/lib/mock-api";
-import { ENTER_SLIDE } from "@/lib/motion";
+import { EASE_OUT_STRONG, ENTER_SLIDE } from "@/lib/motion";
 
 import { CopyButton } from "./copy-button";
 import type { AssistantMessage, UserMessage } from "./types";
@@ -208,17 +208,41 @@ function FailedSendNotice({
   );
 }
 
+/** Built once: constructing a formatter per render is needlessly costly. */
+const timeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 /** The waiting row, shown from the moment a message is sent. */
 function ThinkingLine({ text }: { text: string }) {
+  /*
+   * Deliberately the same shell as the reply it becomes: once the message is
+   * accepted this row is replaced by ReplyPreview, and if the two did not
+   * agree on their structure the thinking line would sit at one height and
+   * the first words of the answer at another. The empty footer is what
+   * reserves the space the copy button and timestamp will take.
+   */
   return (
-    <Marker>
-      <MarkerIcon>
-        <Spinner aria-hidden="true" role="presentation" />
-      </MarkerIcon>
-      <MarkerContent>
-        <span className="animate-pulse motion-reduce:animate-none">{text}</span>
-      </MarkerContent>
-    </Marker>
+    <Message>
+      <MessageContent className="gap-2">
+        <Bubble variant="ghost" aria-busy="true">
+          <BubbleContent>
+            <Marker>
+              <MarkerIcon>
+                <Spinner aria-hidden="true" role="presentation" />
+              </MarkerIcon>
+              <MarkerContent>
+                <span className="animate-pulse motion-reduce:animate-none">
+                  {text}
+                </span>
+              </MarkerContent>
+            </Marker>
+          </BubbleContent>
+        </Bubble>
+        <MessageFooter inert aria-hidden="true" className="min-h-7" />
+      </MessageContent>
+    </Message>
   );
 }
 
@@ -327,10 +351,12 @@ function ReplyPreview({ message }: ReplyPreviewProps) {
   const streaming = message.status === "streaming";
   const stoppedEarly =
     message.status === "stopped" && message.text.length === 0;
+  const settled =
+    message.status === "completed" || message.status === "stopped";
 
   return (
     <Message className="max-h-72 overflow-y-auto">
-      <MessageContent>
+      <MessageContent className="gap-2">
         {stoppedEarly ? null : (
           <Bubble variant="ghost" aria-busy={waiting || streaming}>
             <BubbleContent>
@@ -355,17 +381,46 @@ function ReplyPreview({ message }: ReplyPreviewProps) {
             </BubbleContent>
           </Bubble>
         )}
-        {/* Once the reply has settled: copy it, and say so if it was cut short. */}
-        {message.status === "completed" || message.status === "stopped" ? (
-          <MessageFooter className="gap-2">
+        {/*
+          The footer holds its place from the first moment the reply block
+          exists, through thinking and streaming, and fades in once the reply
+          settles. Mounting it at the end instead would push the composer
+          down exactly as the reader reaches it, and min-h keeps that space
+          reserved while the row is still empty. Hidden from the keyboard and
+          screen readers until it is real.
+        */}
+        <MessageFooter
+          inert={!settled}
+          aria-hidden={!settled}
+          className={cn(
+            "min-h-7 gap-2 text-xs transition-opacity duration-200 motion-reduce:transition-none",
+            EASE_OUT_STRONG,
+            settled ? "opacity-100" : "opacity-0",
+          )}
+        >
             {message.text.length > 0 ? (
               <CopyButton value={message.text} label="reply" />
             ) : null}
-            {message.status === "stopped" ? (
-              <span>{stoppedEarly ? "Stopped before the reply" : "Stopped"}</span>
+            {/*
+              A machine readable timestamp with a short local time inside it,
+              so the hour format follows the reader rather than the author.
+            */}
+            {message.finishedAt ? (
+              <time
+                dateTime={message.finishedAt.toISOString()}
+                // The footer sets a medium weight for its labels; a
+                // timestamp is data, not a label, so it stays regular.
+                className="font-normal tabular-nums text-muted-foreground"
+              >
+                {timeFormat.format(message.finishedAt)}
+              </time>
             ) : null}
-          </MessageFooter>
-        ) : null}
+            {message.status === "stopped" ? (
+              <span className="text-muted-foreground">
+                {stoppedEarly ? "Stopped before the reply" : "Stopped"}
+              </span>
+            ) : null}
+        </MessageFooter>
       </MessageContent>
     </Message>
   );
