@@ -6,6 +6,7 @@
  */
 
 import {
+  APP_LOOKUP_TIMING,
   ATTACHMENT_LIMITS,
   MODELS,
   MODELS_TIMING,
@@ -211,6 +212,28 @@ export function streamReply(
 
     timer = setTimeout(tick, STREAM_TIMING.pendingMs);
   });
+}
+
+export type AppLookupStage = "searching" | "reading" | "done";
+
+type ConsultAppOptions = {
+  onProgress: (stage: AppLookupStage) => void;
+  signal?: AbortSignal;
+};
+
+/**
+ * Pretends to consult a connected app before a reply: a search, then a read
+ * of what it found. Aborting rejects with AbortError between the two.
+ */
+export async function consultApp({
+  onProgress,
+  signal,
+}: ConsultAppOptions): Promise<void> {
+  onProgress("searching");
+  await wait(APP_LOOKUP_TIMING.searchMs, signal);
+  onProgress("reading");
+  await wait(APP_LOOKUP_TIMING.readMs, signal);
+  onProgress("done");
 }
 
 export type ProcessingStage = "reading" | "done";

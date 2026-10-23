@@ -24,13 +24,14 @@ import {
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace";
+import { IntegrationIcon } from "@/components/composer/connected-apps";
 import { formatBytes } from "@/lib/files";
-import { pickReply } from "@/lib/mock-data";
+import { pickAppLookup, pickReply } from "@/lib/mock-data";
 import type { ProcessingStage } from "@/lib/mock-api";
 import { EASE_OUT_STRONG, ENTER_SLIDE } from "@/lib/motion";
 
 import { CopyButton } from "./copy-button";
-import type { AssistantMessage, UserMessage } from "./types";
+import type { AppLookup, AssistantMessage, UserMessage } from "./types";
 
 /**
  * The trigger's own chevron is a direct child, so it can be pinned to the
@@ -52,9 +53,10 @@ type RunPanelProps = {
 
 /**
  * What sits above the composer: once a message is sent, the trace of the
- * files being read, in a single bordered box, and the reply, which flows
- * free with no box around it. While composing there is nothing here; the
- * chips in the composer carry the upload.
+ * files being read and of any connected app consulted, in a single bordered
+ * box, and the reply, which flows free with no box around it. While
+ * composing there is nothing here; the chips in the composer carry the
+ * upload.
  */
 export function RunPanel({
   pendingSend,
@@ -63,20 +65,23 @@ export function RunPanel({
   onDiscard,
 }: RunPanelProps) {
   const trace = buildTrace(pendingSend, reply);
+  const lookup = buildAppTrace(pendingSend, reply);
   const failedSend = pendingSend?.status === "failed" ? pendingSend : null;
   const showReply = reply !== null && reply.status !== "processing";
   /*
-   * A message with no files has no trace to show, so without this the box
+   * A message with nothing to trace has no box to show, so without this it
    * would stay empty for the length of the send and the thinking line would
    * arrive late. The text is the one the reply will use, so the line does
    * not change when delivery completes.
    */
   const waitingFor =
-    pendingSend?.status === "sending" && pendingSend.attachments.length === 0
+    pendingSend?.status === "sending" && !trace && !lookup
       ? pickReply(pendingSend.text).thinking
       : null;
 
-  if (!trace && !failedSend && !showReply && !waitingFor) return null;
+  if (!trace && !lookup && !failedSend && !showReply && !waitingFor) {
+    return null;
+  }
 
   return (
     // One border around the whole run: the trace and the reply it produced
@@ -84,12 +89,13 @@ export function RunPanel({
     <>
       {/* One border, drawn by the Frame itself: the trace sits directly
           inside it rather than in a nested panel. */}
-      {trace ? (
+      {trace || lookup ? (
         <Frame
           spacing="sm"
-          className={cn("bg-card px-3 py-2.5 text-sm", ENTER)}
+          className={cn("gap-2 bg-card px-3 py-2.5 text-sm", ENTER)}
         >
-          <FileTrace trace={trace} />
+          {trace ? <FileTrace trace={trace} /> : null}
+          {lookup ? <AppTrace lookup={lookup} /> : null}
         </Frame>
       ) : null}
       {/* The reply is not a card: it flows between the trace and the
@@ -164,6 +170,37 @@ function buildTrace(
       stopped: false,
       queued: true,
     };
+  }
+  return null;
+}
+
+type AppTraceModel = AppLookup & {
+  stopped: boolean;
+  /** The message is still on its way; the lookup has not begun. */
+  queued: boolean;
+};
+
+/**
+ * The app a reply consults, if any. The pick is deterministic from the
+ * message, so it can be made while the message is still sending and listed
+ * dimmed from the first moment, like the files.
+ */
+function buildAppTrace(
+  pendingSend: UserMessage | null,
+  reply: AssistantMessage | null,
+): AppTraceModel | null {
+  if (reply?.appLookup) {
+    return {
+      ...reply.appLookup,
+      stopped: reply.status === "stopped" && reply.appLookup.stage !== "done",
+      queued: false,
+    };
+  }
+  if (pendingSend?.status === "sending") {
+    const plan = pickAppLookup(pendingSend.text, pendingSend.connectedApps);
+    if (plan) {
+      return { ...plan, stage: "searching", stopped: false, queued: true };
+    }
   }
   return null;
 }
@@ -336,6 +373,44 @@ function FileTrace({ trace }: FileTraceProps) {
   );
 }
 
+type AppTraceProps = {
+  lookup: AppTraceModel;
+};
+
+/**
+ * One line for the connected app the reply reached for: its mark, what is
+ * being done to it, and once something is found, how much. Shimmers while
+ * it runs; a lookup cut short by Stop stays listed, not done and not moving.
+ */
+function AppTrace({ lookup }: AppTraceProps) {
+  const { app, verb, unit, found, stage, stopped, queued } = lookup;
+  const status =
+    stage === "done" ? undefined : stopped || queued ? "pending" : "running";
+  const doing = stage === "searching" ? verb.toLowerCase() : "reading";
+  const title = stopped
+    ? `Stopped ${doing} ${app.name}`
+    : stage === "searching"
+      ? `${verb} ${app.name}`
+      : stage === "reading"
+        ? `Reading ${app.name}`
+        : `Read ${app.name}`;
+
+  return (
+    <Trace className={ENTER}>
+      <TraceLine status={status}>
+        <TraceIcon>
+          <IntegrationIcon id={app.id} />
+        </TraceIcon>
+        <TraceTitle>{title}</TraceTitle>
+        {stage !== "searching" ? (
+          <TraceDescription>
+            {found} {unit}
+          </TraceDescription>
+        ) : null}
+      </TraceLine>
+    </Trace>
+  );
+}
 
 type ReplyPreviewProps = {
   message: AssistantMessage;

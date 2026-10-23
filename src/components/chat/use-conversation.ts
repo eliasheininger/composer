@@ -7,12 +7,18 @@ import type {
   ComposerSubmission,
 } from "@/components/composer/types";
 import {
+  consultApp,
   loadModels,
   processAttachments,
   simulateSend,
   streamReply,
 } from "@/lib/mock-api";
-import { DEFAULT_MODEL_ID, pickReply, type Model } from "@/lib/mock-data";
+import {
+  DEFAULT_MODEL_ID,
+  pickAppLookup,
+  pickReply,
+  type Model,
+} from "@/lib/mock-data";
 
 import type {
   AssistantMessage,
@@ -73,17 +79,19 @@ export function useConversation() {
         name,
         size,
       }));
+      const lookup = pickAppLookup(user.text, user.connectedApps);
       const assistant: AssistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
         text: "",
         modelId: user.modelId,
         thinking: reply.thinking,
-        status: files.length > 0 ? "processing" : "waiting",
+        status: files.length > 0 || lookup ? "processing" : "waiting",
         processing:
           files.length > 0
             ? { files, progress: files.map(() => 0), stage: "reading" }
             : undefined,
+        appLookup: lookup ? { ...lookup, stage: "searching" } : undefined,
       };
       setMessages((current) => [...current, assistant]);
 
@@ -95,7 +103,8 @@ export function useConversation() {
         "(prefers-reduced-motion: reduce)",
       ).matches;
 
-      // Attached files are read first, as a trace, then the reply streams.
+      // Attached files are read first, as a trace, then any connected app
+      // is consulted, then the reply streams.
       const read =
         files.length > 0
           ? processAttachments(files, {
@@ -104,12 +113,23 @@ export function useConversation() {
                 patch<AssistantMessage>(assistant.id, {
                   processing: { files, ...progress },
                 }),
-            }).then(() =>
-              patch<AssistantMessage>(assistant.id, { status: "waiting" }),
-            )
+            })
           : Promise.resolve();
 
-      read
+      const consulted = lookup
+        ? read.then(() =>
+            consultApp({
+              signal: controller.signal,
+              onProgress: (stage) =>
+                patch<AssistantMessage>(assistant.id, {
+                  appLookup: { ...lookup, stage },
+                }),
+            }),
+          )
+        : read;
+
+      consulted
+        .then(() => patch<AssistantMessage>(assistant.id, { status: "waiting" }))
         .then(() =>
           streamReply(reply, {
             signal: controller.signal,

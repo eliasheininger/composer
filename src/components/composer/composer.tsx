@@ -12,7 +12,6 @@ import {
 import {
   ArrowUpIcon,
   CircleAlertIcon,
-  PaperclipIcon,
   SquareIcon,
   UploadIcon,
 } from "lucide-react";
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { formatBytes } from "@/lib/files";
+import type { IntegrationId } from "@/lib/mock-data";
 import {
   EASE_DRAWER_VALUE,
   EASE_OUT_STRONG_VALUE,
@@ -37,7 +37,9 @@ import {
   ENTER_SCALE,
 } from "@/lib/motion";
 
+import { AddMenu } from "./add-menu";
 import { AttachmentList } from "./attachment-list";
+import { ConnectedApps } from "./connected-apps";
 import { ModelPicker, type ModelPickerProps } from "./model-picker";
 import type {
   ComposerActivity,
@@ -62,7 +64,9 @@ export type ComposerProps = {
   /**
    * Optional content rendered above the composer, as its own box. Receives
    * the live attachments so an upload can be traced from the moment a file
-   * lands, before it is sent. Return a Frame, or null.
+   * lands, before it is sent. Return a Frame, or null. It sits in a row at
+   * least `--composer-top` tall, aligned to its bottom, so it grows upward
+   * and the input below it stays put.
    */
   renderPanel?: (attachments: ComposerAttachment[]) => ReactNode;
   /** Blocks typing, attaching and sending entirely. */
@@ -75,14 +79,14 @@ export type ComposerProps = {
  * The composer: a ReUI Frame (the outlined box) holding the attachment chips
  * when files are present and, below them, the input panel: a borderless
  * shadcn InputGroup with the auto-growing textarea and a footer carrying
- * the paperclip, the model picker and the send/stop button. Frame and panel
- * radii come from the Nova preset.
+ * the plus menu, the connected app marks, the model picker and the send/stop
+ * button. Frame and panel radii come from the Nova preset.
  *
- * Files arrive three ways: the paperclip opens the native picker, the whole
- * composer is a drop target, and pasting files into the textarea attaches
- * them while plain text pastes are untouched. Enter sends, Shift+Enter
- * inserts a newline, Escape stops a running reply, and an in-progress IME
- * composition never sends.
+ * Files arrive three ways: Add files in the plus menu opens the native
+ * picker, the whole composer is a drop target, and pasting files into the
+ * textarea attaches them while plain text pastes are untouched. Enter sends,
+ * Shift+Enter inserts a newline, Escape stops a running reply, and an
+ * in-progress IME composition never sends.
  */
 export function Composer({
   onSubmit,
@@ -107,6 +111,14 @@ export function Composer({
     onFilesAdded: () => textareaRef.current?.focus(),
   });
 
+  // Mocked: connecting an app only records it here, nothing is authenticated.
+  const [connectedApps, setConnectedApps] = useState<IntegrationId[]>([]);
+  function toggleApp(id: IntegrationId) {
+    setConnectedApps((prev) =>
+      prev.includes(id) ? prev.filter((app) => app !== id) : [...prev, id],
+    );
+  }
+
   const hasAttachments = files.attachments.length > 0;
   /*
    * Emptying the row removes its content, so 1fr resolves to zero before
@@ -116,6 +128,15 @@ export function Composer({
    */
   const [lingering, setLingering] = useState<ComposerAttachment[]>([]);
   const rowAttachments = hasAttachments ? files.attachments : lingering;
+
+  /*
+   * The row under the input does the same: it stays mounted and animates
+   * between zero and its content height, and whatever it last showed
+   * lingers while it closes.
+   */
+  const hasFooterRow = connectedApps.length > 0 || files.rejections.length > 0;
+  const [rowRejections, clearRejections] = useLingering(files.rejections);
+  const [rowApps, clearApps] = useLingering(connectedApps);
 
   /** Snapshot the row when an action is about to leave it empty. */
   function keepForCollapse() {
@@ -213,6 +234,7 @@ export function Composer({
       text: trimmed,
       attachments: files.detach(),
       modelId: modelPicker.value,
+      connectedApps,
     });
     // Pin before clearing, so the shrink is animated rather than painted.
     collapseTextarea();
@@ -239,8 +261,15 @@ export function Composer({
   }
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      {renderPanel?.(files.attachments)}
+    <div
+      className={cn(
+        "grid grid-rows-[minmax(var(--composer-top,0px),auto)_auto] gap-3",
+        className,
+      )}
+    >
+      <div className="flex min-h-0 flex-col justify-end gap-3">
+        {renderPanel?.(files.attachments)}
+      </div>
       <form
         onSubmit={handleSubmit}
         className="relative"
@@ -331,16 +360,13 @@ export function Composer({
             />
 
             <InputGroupAddon align="block-end" className="gap-1 px-2 pb-2">
-              <InputGroupButton
-                type="button"
-                size="icon-sm"
-                aria-label="Attach files"
-                onClick={files.openFileDialog}
-                disabled={disabled || files.isFull}
-                className="rounded-full focus-visible:border-transparent focus-visible:ring-0"
-              >
-                <PaperclipIcon />
-              </InputGroupButton>
+              <AddMenu
+                onAddFiles={files.openFileDialog}
+                filesFull={files.isFull}
+                connected={connectedApps}
+                onToggle={toggleApp}
+                disabled={disabled}
+              />
               {summary ? (
                 <InputGroupText className="text-xs tabular-nums">
                   {summary}
@@ -389,37 +415,66 @@ export function Composer({
             </FramePanel>
 
             {/*
-              Rejected files are called out under the input, inside the frame,
-              as badges: dark orange on a light orange fill, cleared as soon
-              as the user types or attaches again.
+              The row under the input, inside the frame: any rejected files
+              on the left as badges (dark orange on a light orange fill,
+              cleared as soon as the user types or attaches again) and the
+              connected app marks on the right.
             */}
-            {files.rejections.length > 0 ? (
-              <div
-                role="alert"
-                // p-1 on top of the frame s own 3px inset puts the badge 7px
-                // from every edge: the horizontal spacing it already had, now
-                // matched vertically.
-                className="mt-(--frame-gap) flex flex-wrap items-center gap-1 p-1"
-              >
-                {files.rejections.map((message) => (
-                  <Badge
-                    key={message}
-                    variant="warning-light"
-                    size="xl"
-                    className={cn(
-                      // h-auto: the badge size sets a fixed height, which a
-                      // wrapped message would spill out of and over the one
-                      // below it.
-                      "h-auto max-w-full rounded-md border-transparent py-1 whitespace-normal wrap-break-word",
-                      ENTER_SCALE,
-                    )}
-                  >
-                    <CircleAlertIcon aria-hidden="true" />
-                    {message}
-                  </Badge>
-                ))}
+            <div
+              className="grid transition-[grid-template-rows] motion-reduce:transition-none"
+              onTransitionEnd={(event) => {
+                if (
+                  event.propertyName === "grid-template-rows" &&
+                  !hasFooterRow
+                ) {
+                  clearRejections();
+                  clearApps();
+                }
+              }}
+              style={{
+                gridTemplateRows: hasFooterRow ? "1fr" : "0fr",
+                transitionDuration: hasFooterRow ? "260ms" : "220ms",
+                transitionTimingFunction: hasFooterRow
+                  ? EASE_OUT_STRONG_VALUE
+                  : EASE_DRAWER_VALUE,
+              }}
+            >
+              <div className="overflow-hidden" inert={!hasFooterRow}>
+                <div
+                  // The gap above travels with the row, so it goes as the row
+                  // closes. p-1 on top of the frame s own 3px inset puts the
+                  // content 7px from every edge: the horizontal spacing it
+                  // already had, now matched vertically.
+                  className="mt-(--frame-gap) flex flex-wrap items-center gap-1 p-1"
+                >
+                  {rowRejections.length > 0 ? (
+                    <div
+                      role="alert"
+                      className="flex flex-wrap items-center gap-1"
+                    >
+                      {rowRejections.map((message) => (
+                        <Badge
+                          key={message}
+                          variant="warning-light"
+                          size="xl"
+                          className={cn(
+                            // h-auto: the badge size sets a fixed height, which a
+                            // wrapped message would spill out of and over the one
+                            // below it.
+                            "h-auto max-w-full rounded-md border-transparent py-1 whitespace-normal wrap-break-word",
+                            ENTER_SCALE,
+                          )}
+                        >
+                          <CircleAlertIcon aria-hidden="true" />
+                          {message}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <ConnectedApps connected={rowApps} className="ms-auto" />
+                </div>
               </div>
-            ) : null}
+            </div>
 
             {files.isDragging ? (
               <div
@@ -447,4 +502,17 @@ export function Composer({
 
     </div>
   );
+}
+
+/**
+ * The last non-empty `items`, held while `items` is empty so a closing row
+ * has content to animate from; `clear` drops it once the row has closed.
+ * Snapshotted while rendering rather than in an effect: the copy has to be
+ * current before the frame in which the content clears. `items` must be
+ * referentially stable between renders (state, not a fresh array).
+ */
+function useLingering<T>(items: T[]): [T[], () => void] {
+  const [kept, setKept] = useState(items);
+  if (items.length > 0 && kept !== items) setKept(items);
+  return [items.length > 0 ? items : kept, () => setKept([])];
 }

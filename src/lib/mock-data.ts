@@ -100,6 +100,89 @@ export const PROCESS_TIMING = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Connected apps (plus menu)
+// ---------------------------------------------------------------------------
+
+export type IntegrationId =
+  | "dropbox"
+  | "figma"
+  | "github"
+  | "gmail"
+  | "google-drive"
+  | "linear"
+  | "notion"
+  | "slack";
+
+export type Integration = {
+  id: IntegrationId;
+  name: string;
+};
+
+/**
+ * Connecting is simulated: a click flips the app to connected, nothing else.
+ * Alphabetical, so the list reads the way a search over it does.
+ */
+export const INTEGRATIONS: Integration[] = [
+  { id: "dropbox", name: "Dropbox" },
+  { id: "figma", name: "Figma" },
+  { id: "github", name: "GitHub" },
+  { id: "gmail", name: "Gmail" },
+  { id: "google-drive", name: "Google Drive" },
+  { id: "linear", name: "Linear" },
+  { id: "notion", name: "Notion" },
+  { id: "slack", name: "Slack" },
+];
+
+/**
+ * How a reply consults a connected app, shown as a trace before it streams.
+ * `verb` is the opening line ("Searching Gmail"); `unit` names what it found.
+ */
+export type AppLookupPlan = {
+  app: Integration;
+  verb: "Searching" | "Reading";
+  unit: string;
+  found: number;
+};
+
+const APP_LOOKUP_COPY: Record<
+  IntegrationId,
+  Pick<AppLookupPlan, "verb" | "unit">
+> = {
+  dropbox: { verb: "Searching", unit: "files" },
+  figma: { verb: "Reading", unit: "frames" },
+  github: { verb: "Searching", unit: "issues" },
+  gmail: { verb: "Searching", unit: "emails" },
+  "google-drive": { verb: "Searching", unit: "documents" },
+  linear: { verb: "Searching", unit: "issues" },
+  notion: { verb: "Reading", unit: "pages" },
+  slack: { verb: "Searching", unit: "messages" },
+};
+
+/** Simulated lookup timing: the search, then the read of what it found. */
+export const APP_LOOKUP_TIMING = {
+  searchMs: 900,
+  readMs: 1100,
+} as const;
+
+/**
+ * Picks the app a reply consults, or none: roughly two replies in three
+ * reach for one when any is connected. Deterministic from the message, like
+ * pickReply, so the same message shows the same trace every time.
+ */
+export function pickAppLookup(
+  text: string,
+  connected: IntegrationId[],
+): AppLookupPlan | null {
+  if (connected.length === 0) return null;
+  const hash = hashText(text);
+  if (hash % 3 === 0) return null;
+  const id = connected[hash % connected.length];
+  const app = INTEGRATIONS.find((item) => item.id === id);
+  if (!app) return null;
+  return { app, ...APP_LOOKUP_COPY[id], found: 2 + (hash % 9) };
+}
+
+// ---------------------------------------------------------------------------
 // Sending
 // ---------------------------------------------------------------------------
 
@@ -150,9 +233,14 @@ export const REPLIES: MockReply[] = [
   },
 ];
 
-/** Picks a reply deterministically from the message so demos are repeatable. */
-export function pickReply(text: string): MockReply {
+/** A small non-negative hash of the message, so demos are repeatable. */
+function hashText(text: string): number {
   let hash = 0;
   for (const char of text) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return REPLIES[Math.abs(hash) % REPLIES.length];
+  return Math.abs(hash);
+}
+
+/** Picks a reply deterministically from the message. */
+export function pickReply(text: string): MockReply {
+  return REPLIES[hashText(text) % REPLIES.length];
 }

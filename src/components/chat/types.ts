@@ -1,5 +1,6 @@
 import type { ComposerAttachment } from "@/components/composer/types";
-import type { ProcessingProgress } from "@/lib/mock-api";
+import type { AppLookupStage, ProcessingProgress } from "@/lib/mock-api";
+import type { AppLookupPlan, IntegrationId } from "@/lib/mock-data";
 
 /** Where a user message is in its round trip to the (fake) server. */
 export type DeliveryStatus = "sending" | "sent" | "failed";
@@ -22,12 +23,18 @@ export type UserMessage = {
   text: string;
   attachments: ComposerAttachment[];
   modelId: string;
+  connectedApps: IntegrationId[];
   status: DeliveryStatus;
   sentAt?: Date;
 };
 
 export type FileProcessing = ProcessingProgress & {
   files: { id: string; name: string; size: number }[];
+};
+
+/** A connected app the reply consulted, and how far it got. */
+export type AppLookup = AppLookupPlan & {
+  stage: AppLookupStage;
 };
 
 export type AssistantMessage = {
@@ -40,6 +47,8 @@ export type AssistantMessage = {
   status: GenerationStatus;
   /** Present when the message it answers carried attachments. */
   processing?: FileProcessing;
+  /** Present when the reply reached for a connected app. */
+  appLookup?: AppLookup;
   finishedAt?: Date;
 };
 
