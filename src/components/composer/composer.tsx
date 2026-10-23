@@ -156,8 +156,11 @@ export function Composer({
    * lingers while it closes.
    */
   const hasFooterRow = connectedApps.length > 0 || files.rejections.length > 0;
-  const [rowRejections, clearRejections] = useLingering(files.rejections);
-  const [rowApps, clearApps] = useLingering(connectedApps);
+  const [rowRejections, clearRejections] = useLingering(
+    files.rejections,
+    hasFooterRow,
+  );
+  const [rowApps, clearApps] = useLingering(connectedApps, hasFooterRow);
 
   /** Snapshot the row when an action is about to leave it empty. */
   function keepForCollapse() {
@@ -532,14 +535,16 @@ export function Composer({
 }
 
 /**
- * The last non-empty `items`, held while `items` is empty so a closing row
- * has content to animate from; `clear` drops it once the row has closed.
+ * The last non-empty `items`, held while the row is closed so it has content
+ * to animate from; `clear` drops it once the row has closed. While the row is
+ * open, `items` is shown as is, even when empty: the row may be open for its
+ * other content, and a held copy would otherwise outlive its dismissal.
  * Snapshotted while rendering rather than in an effect: the copy has to be
  * current before the frame in which the content clears. `items` must be
  * referentially stable between renders (state, not a fresh array).
  */
-function useLingering<T>(items: T[]): [T[], () => void] {
+function useLingering<T>(items: T[], open: boolean): [T[], () => void] {
   const [kept, setKept] = useState(items);
   if (items.length > 0 && kept !== items) setKept(items);
-  return [items.length > 0 ? items : kept, () => setKept([])];
+  return [open ? items : kept, () => setKept([])];
 }
