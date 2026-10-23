@@ -145,7 +145,7 @@ export function AddMenu({
           <InputGroupButton
             size="icon-sm"
             className={cn(
-              "rounded-full focus-visible:border-transparent focus-visible:ring-0",
+              "rounded-full",
               // Press feedback: the base button withholds its press scale
               // from popup triggers, so it is restated here. 150ms ease-out,
               // from the button's own transition. Still under reduced motion.
