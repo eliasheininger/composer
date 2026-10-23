@@ -106,12 +106,14 @@ export function Composer({
    * A focused text field always matches :focus-visible, so a ring keyed off
    * it would also appear on a mouse click. The last input method is tracked
    * instead, and the textarea only marks focus that arrived by keyboard.
+   * Only Tab counts: Enter sends and the reply hands focus back, and that
+   * is not navigation, so a mouse user never sees the ring.
    */
   const lastInput = useRef<"keyboard" | "pointer">("keyboard");
   const [keyboardFocus, setKeyboardFocus] = useState(false);
   useEffect(() => {
-    const onKey = () => {
-      lastInput.current = "keyboard";
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Tab") lastInput.current = "keyboard";
     };
     const onPointer = () => {
       lastInput.current = "pointer";
