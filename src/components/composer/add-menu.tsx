@@ -186,6 +186,9 @@ export function AddMenu({
               Add files
             </CascaderAction>
 
+            {/* Two unrelated actions, so a rule between them. */}
+            <CascaderSeparator />
+
             <CascaderSubmenu
               open={appsOpen}
               onOpenChange={(next) => {
